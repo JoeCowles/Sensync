@@ -113,20 +113,26 @@ class Application(tk.Frame):
         plt.show()
         self.canvas.draw()
         self.calc_correlation()
-        
+
+    def adjust_data_length(self):
+        min_len = min(len(self.df_resampled), len(self.frame_differences))
+        self.df_resampled = self.df_resampled[:min_len]
+        self.frame_differences = self.frame_differences[:min_len]
+
     def calc_correlation(self):
-        if len(self.df_resampled) == 0 or len(self.frame_differences) ==0 :
+        if len(self.df_resampled) == 0 or len(self.frame_differences) == 0:
             return
-        frame_diff_series = pd.Series(self.frame_differences, index=pd.date_range(start=self.df_resampled.index[0], periods=len(self.frame_differences), freq='33.33ms'))
+        self.adjust_data_length()  # Adjust the lengths of the two data series to be the same
+        frame_diff_series = pd.Series(self.frame_differences, index=self.df_resampled.index)
         cross_corr = np.correlate(self.df_resampled.fillna(0), frame_diff_series.fillna(0), mode='full')
         best_offset_index = cross_corr.argmax()
-        
+
         best_offset_secs = best_offset_index / 30  # since we're dealing with 30Hz data
-        
+
         print('Best offset is', best_offset_secs, 'seconds')
-        
+
         offsets = np.arange(-len(self.df_resampled) + 1, len(frame_diff_series))
-        
+
         self.ax[2].plot(offsets / 30, cross_corr)  # Dividing by 30 to convert offsets to seconds
         plt.xlabel('Best offset')
         self.canvas.draw()

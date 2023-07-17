@@ -53,20 +53,28 @@ class Sensync():
         return frame_differences
     
     def sync(self, video_path:str, 
-             frames:int,
-             sensor_path:str, 
-             export_path='',
-             export=False,
-             ):
+         fps:int,
+         sensor_path:str, 
+         window=30,
+         export_path='',
+         export=False,
+         ):
         if export == True and export_path == '':
             raise Exception('export_path must be valid!')
-        offset = 0
-        
+
         vid_motion = self.video_motion(video_path)
-        sensor_motion = self.sensor_motion(sensor_path, frames)
-        
-        
-        
-        return offset
+        sensor_motion = self.sensor_motion(sensor_path, fps)
+
+        bestOffset = 0
+        bestCorr = -1  # Initialize best correlation to -1 (worst possible correlation)
+
+        for offset in range(-fps * window, fps * window):
+            # Calculate correlation for current offset
+            corr = np.corrcoef(vid_motion[offset:offset + 2*fps*window], sensor_motion[offset:offset + 2*fps*window])[0, 1]
+            if corr > bestCorr:
+                bestCorr = corr
+                bestOffset = offset
+
+        return bestOffset
     
     

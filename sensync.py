@@ -28,26 +28,26 @@ class Sensync:
 
     def video_motion(self, video_paths: list):
         def process_video(video_path):
-            cap = cv2.VideoCapture(video_path)
-            if not cap.isOpened():
-                print(f"Error opening video file: {video_path}")
-                raise Exception(
-                    f"Could not open the video file {video_path}, please check the path and try again"
-                )
-            prev_frame = None
-            local_frame_differences = []
+            try:
+                cap = cv2.VideoCapture(video_path)
+                if not cap.isOpened():
+                    raise IOError(f"Could not open video file: {video_path}")
+                prev_frame = None
+                local_frame_differences = []
 
-            while True:
-                ret, frame = cap.read()
-                if not ret:
-                    break
-                frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                if prev_frame is not None:
-                    frame_diff = cv2.absdiff(prev_frame, frame_gray)
-                    total_diff = frame_diff.sum()
-                    local_frame_differences.append(total_diff)
-                prev_frame = frame_gray
-            frame_differences.extend(local_frame_differences)
+                while True:
+                    ret, frame = cap.read()
+                    if not ret:
+                        break
+                    frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                    if prev_frame is not None:
+                        frame_diff = cv2.absdiff(prev_frame, frame_gray)
+                        total_diff = frame_diff.sum()
+                        local_frame_differences.append(total_diff)
+                    prev_frame = frame_gray
+                frame_differences.extend(local_frame_differences)
+            except Exception as e:
+                print(f"Error processing video {video_path}: {str(e)}")
 
         frame_differences = []
         threads = []
@@ -70,8 +70,8 @@ class Sensync:
         export_path="",
         export=False,
     ):
-        if export == True and export_path == "":
-            raise Exception("export_path must be valid!")
+        if export and export_path == "":
+            raise ValueError("export_path must be valid!")
 
         vid_motion = self.video_motion([video_path])
         sensor_motion = self.sensor_motion(sensor_path, fps)
@@ -81,12 +81,15 @@ class Sensync:
 
         for offset in range(-fps * window, fps * window):
             # Calculate correlation for current offset
-            corr = np.corrcoef(
-                vid_motion[offset : offset + 2 * fps * window],
-                sensor_motion[offset : offset + 2 * fps * window],
-            )[0, 1]
-            if corr > bestCorr:
-                bestCorr = corr
-                bestOffset = offset
+            try:
+                corr = np.corrcoef(
+                    vid_motion[offset : offset + 2 * fps * window],
+                    sensor_motion[offset : offset + 2 * fps * window],
+                )[0, 1]
+                if corr > bestCorr:
+                    bestCorr = corr
+                    bestOffset = offset
+            except IndexError:
+                continue  # Skip offsets that are out of range
 
         return bestOffset
